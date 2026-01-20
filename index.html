@@ -8,18 +8,62 @@
 
 <h3>Visuals iframe loaded</h3>
 <p>Open console to see incoming data</p>
+  <div id="visual-root" style="width:100%; height:500px;"></div>
+
 
 <script>
-  window.addEventListener("message", (event) => {
-    console.log("📩 Message received in iframe:", event.data);
+/* ========= VISUAL ROUTER ========= */
 
-    // Visual confirmation on page
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<pre>${JSON.stringify(event.data, null, 2)}</pre>`
-    );
+window.addEventListener("message", (event) => {
+  if (event.data.type !== "ENGINE_RESULT") return;
+
+  const payload = event.data.payload;
+  console.log("📩 Engine data:", payload);
+
+  routeVisual(payload);
+});
+
+/* ========= DETECTOR ========= */
+
+function routeVisual(payload) {
+  // Clear old visuals
+  document.getElementById("visual-root").innerHTML = "";
+
+  // RULE 1: Phasor detection (domain-agnostic)
+  if (payload.data && payload.data.vectors) {
+    renderPhasor(payload.data.vectors);
+    return;
+  }
+
+  // Future rules go here:
+  // - waveform
+  // - bode
+  // - circuit
+}
+
+/* ========= RENDERERS ========= */
+
+function renderPhasor(vectors) {
+  const traces = vectors.map(v => ({
+    type: "scatterpolar",
+    r: [0, v.magnitude],
+    theta: [0, v.angle_deg],
+    mode: "lines+text",
+    name: v.label,
+    text: ["", v.label],
+    textposition: "top right"
+  }));
+
+  Plotly.newPlot("visual-root", traces, {
+    polar: { radialaxis: { visible: true } },
+    showlegend: true
   });
+}
 </script>
+
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
 
 </body>
 </html>
+
