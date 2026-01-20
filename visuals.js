@@ -24,14 +24,14 @@ function routeVisual(data) {
   clearVisuals();
 
   // AC / Vector-based (phasors, vectors, forces, etc.)
-  if (Array.isArray(data.vectors)) {
-    renderPhasor(data.vectors);
+  if (Array.isArray(data.solution)) {
+    renderPhasor(data.solution);
     return;
   }
 
   // DC nodal / scalar per node
-  if (isObject(data.node_voltages)) {
-    renderNodeVoltages(data.node_voltages);
+  if (isObject(data.solution)) {
+    renderNodeVoltages(data.solution);
     return;
   }
 
