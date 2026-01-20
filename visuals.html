@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Visuals Page</title>
+</head>
+<body>
+
+<h3>Visuals iframe loaded</h3>
+<p>Open console to see incoming data</p>
+
+<script>
+  window.addEventListener("message", (event) => {
+    console.log("📩 Message received in iframe:", event.data);
+
+    // Visual confirmation on page
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<pre>${JSON.stringify(event.data, null, 2)}</pre>`
+    );
+  });
+</script>
+
+</body>
+</html>
