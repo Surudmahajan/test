@@ -2,36 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>External Visuals Engine</title>
+  <title>Visuals Engine</title>
 
-  <!-- External libraries -->
+  <!-- Plotly -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 10px;
-      background: #fafafa;
-    }
-    #visual-root {
-      width: 100%;
-      min-height: 500px;
-    }
-    .placeholder {
-      color: #777;
-      text-align: center;
-      margin-top: 40px;
-    }
-  </style>
-</head>
-<body>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <h3>Visual Output</h3>
-  <div id="visual-root">
-    <p class="placeholder">Waiting for engine data…</p>
+  <!-- Styles -->
+  <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+  <div class="visuals-app">
+
+    <header class="visuals-header">
+      <h1>Visual Analysis</h1>
+      <p>Backend-driven graphical explanations</p>
+    </header>
+
+    <main class="visuals-main">
+      <div id="visual-root" class="visual-card">
+        <div class="placeholder">
+          Waiting for engine data…
+        </div>
+      </div>
+    </main>
+
+    <footer class="visuals-footer">
+      Electronics AI Engine · Visuals
+    </footer>
+
   </div>
 
+  <!-- Visual Logic (DO NOT MODIFY) -->
   <script src="./visuals.js"></script>
 </body>
 </html>
