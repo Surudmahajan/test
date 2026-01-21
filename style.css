@@ -1,0 +1,143 @@
+/* ===============================
+   GLOBAL RESET
+================================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: radial-gradient(
+    circle at top,
+    #1b1f2a,
+    #0d0f16 70%
+  );
+  color: #e6e8ee;
+}
+
+/* ===============================
+   APP LAYOUT
+================================ */
+.visuals-app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.visuals-header {
+  text-align: center;
+  padding: 1.2rem 1rem 0.5rem;
+}
+
+.visuals-header h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.visuals-header p {
+  font-size: 0.9rem;
+  color: #9aa4c7;
+  margin-top: 0.3rem;
+}
+
+/* ===============================
+   MAIN VISUAL AREA
+================================ */
+.visuals-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.visual-card {
+  width: 100%;
+  min-height: 320px;
+  border-radius: 18px;
+  padding: 1rem;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.08),
+    rgba(255,255,255,0.02)
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.35),
+    inset 0 0 0 1px rgba(255,255,255,0.04);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.visual-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 26px 50px rgba(0,0,0,0.45),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+/* ===============================
+   PLACEHOLDER
+================================ */
+.placeholder {
+  height: 100%;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7f88a9;
+  font-size: 0.95rem;
+  letter-spacing: 0.4px;
+}
+
+/* ===============================
+   TABLE STYLING (Truth Tables)
+================================ */
+.visual-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.visual-table th,
+.visual-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.visual-table th {
+  color: #b7c0ff;
+  font-weight: 500;
+}
+
+/* ===============================
+   FOOTER
+================================ */
+.visuals-footer {
+  font-size: 0.75rem;
+  color: #6f7699;
+  padding: 0.6rem 0 1rem;
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+@media (max-width: 700px) {
+  .visuals-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .visual-card {
+    min-height: 260px;
+  }
+}
