@@ -1,153 +1,192 @@
-/* =========================================================
-   MESSAGE RECEIVER (engine → iframe)
-========================================================= */
+/* =====================================================
+   ELECTRONICS VISUALS ENGINE (BACKEND-CONTRACT DRIVEN)
+   Authoritative version
+===================================================== */
+
+/* ---------- Message Receiver ---------- */
 
 window.addEventListener("message", (event) => {
   if (!event.data || event.data.type !== "ENGINE_RESULT") return;
 
   const payload = event.data.payload;
-  console.log("📩 Engine payload received:", payload);
+  console.log("📩 Visuals received:", payload);
 
   if (!payload || !payload.data) {
-    renderPlaceholder("No visualizable data found.");
+    showMessage("No data received from engine.");
     return;
   }
 
   routeVisual(payload.data);
 });
 
-/* =========================================================
-   VISUAL ROUTER (DOMAIN-AGNOSTIC)
-========================================================= */
+/* ---------- Visual Router ---------- */
 
 function routeVisual(data) {
-  clearVisuals();
+  clear();
 
-  // AC / Vector-based (phasors, vectors, forces, etc.)
-  if (Array.isArray(data.solution)) {
-    renderPhasor(data.solution);
+  /* CLASS A — solution object (DC nodal, mesh, algebraic, etc.) */
+  if (isPlainObject(data.solution)) {
+    renderScalarMap(data.solution, "Solution");
     return;
   }
 
-  // DC nodal / scalar per node
-  if (isObject(data.solution)) {
-    renderNodeVoltages(data.solution);
+  /* CLASS B — multiple scalar numeric keys (AC RLC, power, thevenin, etc.) */
+  const scalarMap = extractScalarMap(data);
+  if (Object.keys(scalarMap).length > 0) {
+    renderScalarMap(scalarMap, "Parameters");
     return;
   }
 
-  // Time-domain signals (transients, signals, control)
-  if (Array.isArray(data.time) && Array.isArray(data.values)) {
-    renderWaveform(data.time, data.values);
+  /* CLASS C — indexed arrays */
+  if (Array.isArray(data.voltages)) {
+    renderIndexedArray(data.voltages, "Voltage");
     return;
   }
 
-  // Frequency response (Bode, spectra)
-  if (Array.isArray(data.frequency) && Array.isArray(data.magnitude)) {
-    renderBode(data.frequency, data.magnitude, data.phase);
+  if (Array.isArray(data.currents)) {
+    renderIndexedArray(data.currents, "Current");
     return;
   }
 
-  // Fallback
-  renderPlaceholder("No visual rule matched for this output.");
+  if (Array.isArray(data.outputs)) {
+    renderIndexedArray(data.outputs, "Output");
+    return;
+  }
+
+  /* CLASS D — truth table */
+  if (Array.isArray(data.table)) {
+    renderTable(data.table);
+    return;
+  }
+
+  /* CLASS E — text / theory / lists */
+  const textBlocks = extractTextBlocks(data);
+  if (textBlocks.length > 0) {
+    renderTextBlocks(textBlocks);
+    return;
+  }
+
+  /* FALLBACK */
+  showMessage("No visual rule matched for this output.");
 }
 
-/* =========================================================
-   RENDERERS
-========================================================= */
+/* ---------- Renderers ---------- */
 
-function renderPhasor(vectors) {
-  const traces = vectors.map(v => ({
-    type: "scatterpolar",
-    r: [0, v.magnitude],
-    theta: [0, v.angle_deg],
-    mode: "lines+text",
-    name: v.label,
-    text: ["", v.label],
-    textposition: "top right"
-  }));
+function renderScalarMap(map, title) {
+  const labels = Object.keys(map);
+  const values = Object.values(map);
 
-  Plotly.newPlot("visual-root", traces, {
-    polar: { radialaxis: { visible: true } },
-    showlegend: true,
-    title: "Phasor Diagram"
-  });
-}
-
-function renderNodeVoltages(nodeVoltages) {
-  const nodes = Object.keys(nodeVoltages);
-  const values = Object.values(nodeVoltages);
-
-  Plotly.newPlot("visual-root", [{
-    type: "bar",
-    x: nodes,
-    y: values,
-    text: values.map(v => `${v} V`),
-    textposition: "auto"
-  }], {
-    title: "DC Node Voltages",
-    yaxis: { title: "Voltage (V)" }
-  });
-}
-
-function renderWaveform(time, values) {
-  Plotly.newPlot("visual-root", [{
-    type: "scatter",
-    x: time,
-    y: values,
-    mode: "lines"
-  }], {
-    title: "Time-Domain Response",
-    xaxis: { title: "Time" },
-    yaxis: { title: "Amplitude" }
-  });
-}
-
-function renderBode(freq, mag, phase) {
-  const plots = [
+  Plotly.newPlot("visual-root", [
     {
-      type: "scatter",
-      x: freq,
-      y: mag,
-      name: "Magnitude",
-      yaxis: "y1"
+      type: "bar",
+      x: labels,
+      y: values,
+      text: values.map(v => formatNumber(v)),
+      textposition: "auto"
     }
-  ];
-
-  if (Array.isArray(phase)) {
-    plots.push({
-      type: "scatter",
-      x: freq,
-      y: phase,
-      name: "Phase",
-      yaxis: "y2"
-    });
-  }
-
-  Plotly.newPlot("visual-root", plots, {
-    title: "Frequency Response",
-    xaxis: { title: "Frequency" },
-    yaxis: { title: "Magnitude" },
-    yaxis2: {
-      title: "Phase",
-      overlaying: "y",
-      side: "right"
-    }
+  ], {
+    title,
+    yaxis: { title: "Value" }
   });
 }
 
-/* =========================================================
-   HELPERS
-========================================================= */
+function renderIndexedArray(arr, labelPrefix) {
+  const labels = arr.map((_, i) => `${labelPrefix} ${i + 1}`);
 
-function clearVisuals() {
+  Plotly.newPlot("visual-root", [
+    {
+      type: "bar",
+      x: labels,
+      y: arr,
+      text: arr.map(v => formatNumber(v)),
+      textposition: "auto"
+    }
+  ], {
+    title: `${labelPrefix} Results`,
+    yaxis: { title: labelPrefix }
+  });
+}
+
+function renderTable(rows) {
+  const headers = Object.keys(rows[0]);
+
+  let html = `<table class="visual-table"><thead><tr>`;
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += `</tr></thead><tbody>`;
+
+  rows.forEach(row => {
+    html += `<tr>`;
+    headers.forEach(h => html += `<td>${row[h]}</td>`);
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>`;
+  document.getElementById("visual-root").innerHTML = html;
+}
+
+function renderTextBlocks(blocks) {
+  const root = document.getElementById("visual-root");
+  blocks.forEach(({ key, value }) => {
+    const section = document.createElement("div");
+    section.innerHTML = `<h4>${key}</h4>${formatText(value)}`;
+    root.appendChild(section);
+  });
+}
+
+/* ---------- Helpers ---------- */
+
+function extractScalarMap(data) {
+  const ignoreKeys = ["topic"];
+  const map = {};
+
+  Object.entries(data).forEach(([k, v]) => {
+    if (
+      !ignoreKeys.includes(k) &&
+      typeof v === "number" &&
+      isFinite(v)
+    ) {
+      map[k] = v;
+    }
+  });
+
+  return map;
+}
+
+function extractTextBlocks(data) {
+  const blocks = [];
+
+  Object.entries(data).forEach(([k, v]) => {
+    if (Array.isArray(v) && v.every(x => typeof x === "string")) {
+      blocks.push({ key: k, value: v });
+    }
+    else if (isPlainObject(v)) {
+      blocks.push({ key: k, value: JSON.stringify(v, null, 2) });
+    }
+  });
+
+  return blocks;
+}
+
+function formatText(value) {
+  if (Array.isArray(value)) {
+    return `<ul>${value.map(v => `<li>${v}</li>`).join("")}</ul>`;
+  }
+  return `<pre>${value}</pre>`;
+}
+
+function formatNumber(v) {
+  return typeof v === "number" ? v.toFixed(4) : v;
+}
+
+function clear() {
   document.getElementById("visual-root").innerHTML = "";
 }
 
-function renderPlaceholder(text) {
+function showMessage(msg) {
   document.getElementById("visual-root").innerHTML =
-    `<p class="placeholder">${text}</p>`;
+    `<p style="color:#777; text-align:center;">${msg}</p>`;
 }
 
-function isObject(obj) {
+function isPlainObject(obj) {
   return obj && typeof obj === "object" && !Array.isArray(obj);
 }
