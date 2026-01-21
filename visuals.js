@@ -1,43 +1,54 @@
 /* =====================================================
-   ELECTRONICS VISUALS ENGINE (BACKEND-CONTRACT DRIVEN)
-   Authoritative version
+   ELECTRONICS VISUALS ENGINE
+   Backend-truth driven (FINAL + PHASORS)
 ===================================================== */
-
-/* ---------- Message Receiver ---------- */
 
 window.addEventListener("message", (event) => {
   if (!event.data || event.data.type !== "ENGINE_RESULT") return;
 
   const payload = event.data.payload;
-  console.log("📩 Visuals received:", payload);
-
   if (!payload || !payload.data) {
     showMessage("No data received from engine.");
     return;
   }
 
+  console.log("📩 Visuals received:", payload.data);
   routeVisual(payload.data);
 });
 
-/* ---------- Visual Router ---------- */
+/* =====================================================
+   ROUTER (ORDER MATTERS)
+===================================================== */
 
 function routeVisual(data) {
   clear();
 
-  /* CLASS A — solution object (DC nodal, mesh, algebraic, etc.) */
+  /* ---------- CLASS 0: Time-series (waveform) ---------- */
+  if (data.samples?.x && data.samples?.y) {
+    renderLinePlot(data.samples.x, data.samples.y, "Waveform");
+    return;
+  }
+
+  /* ---------- CLASS 1: Phasor (impedance phasor) ---------- */
+  if (data.phasor?.magnitude !== undefined && data.phasor?.angle !== undefined) {
+    renderPhasor(data.phasor);
+    return;
+  }
+
+  /* ---------- CLASS A: Algebraic solution ---------- */
   if (isPlainObject(data.solution)) {
     renderScalarMap(data.solution, "Solution");
     return;
   }
 
-  /* CLASS B — multiple scalar numeric keys (AC RLC, power, thevenin, etc.) */
+  /* ---------- CLASS B: Scalar parameters ---------- */
   const scalarMap = extractScalarMap(data);
   if (Object.keys(scalarMap).length > 0) {
     renderScalarMap(scalarMap, "Parameters");
     return;
   }
 
-  /* CLASS C — indexed arrays */
+  /* ---------- CLASS C: Indexed arrays ---------- */
   if (Array.isArray(data.voltages)) {
     renderIndexedArray(data.voltages, "Voltage");
     return;
@@ -53,57 +64,80 @@ function routeVisual(data) {
     return;
   }
 
-  /* CLASS D — truth table */
+  /* ---------- CLASS D: Tables ---------- */
   if (Array.isArray(data.table)) {
     renderTable(data.table);
     return;
   }
 
-  /* CLASS E — text / theory / lists */
+  /* ---------- CLASS E: Informational text ---------- */
   const textBlocks = extractTextBlocks(data);
   if (textBlocks.length > 0) {
     renderTextBlocks(textBlocks);
     return;
   }
 
-  /* FALLBACK */
   showMessage("No visual rule matched for this output.");
 }
 
-/* ---------- Renderers ---------- */
+/* =====================================================
+   RENDERERS
+===================================================== */
 
 function renderScalarMap(map, title) {
-  const labels = Object.keys(map);
-  const values = Object.values(map);
-
-  Plotly.newPlot("visual-root", [
-    {
-      type: "bar",
-      x: labels,
-      y: values,
-      text: values.map(v => formatNumber(v)),
-      textposition: "auto"
-    }
-  ], {
+  Plotly.newPlot("visual-root", [{
+    type: "bar",
+    x: Object.keys(map),
+    y: Object.values(map),
+    text: Object.values(map).map(formatNumber),
+    textposition: "auto"
+  }], {
     title,
     yaxis: { title: "Value" }
   });
 }
 
 function renderIndexedArray(arr, labelPrefix) {
-  const labels = arr.map((_, i) => `${labelPrefix} ${i + 1}`);
+  Plotly.newPlot("visual-root", [{
+    type: "bar",
+    x: arr.map((_, i) => `${labelPrefix} ${i + 1}`),
+    y: arr,
+    text: arr.map(formatNumber),
+    textposition: "auto"
+  }], {
+    title: `${labelPrefix} Results`
+  });
+}
 
-  Plotly.newPlot("visual-root", [
-    {
-      type: "bar",
-      x: labels,
-      y: arr,
-      text: arr.map(v => formatNumber(v)),
-      textposition: "auto"
-    }
-  ], {
-    title: `${labelPrefix} Results`,
-    yaxis: { title: labelPrefix }
+function renderLinePlot(x, y, title) {
+  Plotly.newPlot("visual-root", [{
+    x,
+    y,
+    type: "scatter",
+    mode: "lines"
+  }], {
+    title,
+    xaxis: { title: "Time" },
+    yaxis: { title: "Amplitude" }
+  });
+}
+
+function renderPhasor(phasor) {
+  const angleDeg = phasor.angle * 180 / Math.PI;
+
+  Plotly.newPlot("visual-root", [{
+    type: "scatterpolar",
+    r: [0, phasor.magnitude],
+    theta: [0, angleDeg],
+    mode: "lines+markers",
+    marker: { size: 8 },
+    name: "Impedance Phasor"
+  }], {
+    title: "Impedance Phasor Diagram",
+    polar: {
+      radialaxis: { visible: true }
+    },
+    showlegend: false
   });
 }
 
@@ -133,18 +167,16 @@ function renderTextBlocks(blocks) {
   });
 }
 
-/* ---------- Helpers ---------- */
+/* =====================================================
+   HELPERS
+===================================================== */
 
 function extractScalarMap(data) {
-  const ignoreKeys = ["topic"];
+  const ignore = ["topic", "samples", "phasor"];
   const map = {};
 
   Object.entries(data).forEach(([k, v]) => {
-    if (
-      !ignoreKeys.includes(k) &&
-      typeof v === "number" &&
-      isFinite(v)
-    ) {
+    if (!ignore.includes(k) && typeof v === "number") {
       map[k] = v;
     }
   });
@@ -158,8 +190,7 @@ function extractTextBlocks(data) {
   Object.entries(data).forEach(([k, v]) => {
     if (Array.isArray(v) && v.every(x => typeof x === "string")) {
       blocks.push({ key: k, value: v });
-    }
-    else if (isPlainObject(v)) {
+    } else if (isPlainObject(v) && k !== "solution") {
       blocks.push({ key: k, value: JSON.stringify(v, null, 2) });
     }
   });
