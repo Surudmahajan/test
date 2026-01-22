@@ -69,6 +69,44 @@ function routeVisual(data) {
     renderTable(data.table);
     return;
   }
+     /* ---------- CLASS D½: Matrix (2D numeric arrays) ---------- */
+  const matrixEntry = extractMatrix(data);
+  if (matrixEntry) {
+    renderMatrix(matrixEntry.key, matrixEntry.value);
+    return;
+  }
+     /* ---------- CLASS D⅔: Complex numbers (Math) ---------- */
+  const complexPayload = extractComplex(data);
+  if (complexPayload) {
+    renderComplexPlane(complexPayload);
+    return;
+  }
+  /* ---------- CLASS D¾: Polynomial / Function Plot ---------- */
+  const poly = extractPolynomial(data);
+  if (poly) {
+    renderPolynomial(poly);
+    return;
+  }
+  /* ---------- CLASS D⅞: Iterative convergence ---------- */
+  const convergence = extractConvergence(data);
+  if (convergence) {
+    renderConvergence(convergence);
+    return;
+  }
+  /* ---------- CLASS D⁹: ODE trajectory (Math) ---------- */
+  const ode = extractODE(data);
+  if (ode) {
+    renderODE(ode);
+    return;
+  }
+  /* ---------- CLASS D¹⁰: Curve fitting ---------- */
+  const fit = extractCurveFit(data);
+  if (fit) {
+    renderCurveFit(fit);
+    return;
+  }
+
+
 
   /* ---------- CLASS E: Informational text ---------- */
   const textBlocks = extractTextBlocks(data);
@@ -166,6 +204,127 @@ function renderTextBlocks(blocks) {
     root.appendChild(section);
   });
 }
+function renderMatrix(title, matrix) {
+  let html = `<h4>${title.replace(/_/g, " ")}</h4>`;
+  html += `<table class="visual-table"><tbody>`;
+
+  matrix.forEach(row => {
+    html += "<tr>";
+    row.forEach(cell => {
+      html += `<td>${formatNumber(cell)}</td>`;
+    });
+    html += "</tr>";
+  });
+
+  html += "</tbody></table>";
+  document.getElementById("visual-root").innerHTML = html;
+}
+function renderComplexPlane(complexData) {
+  let points = [];
+  let title = "Argand Plane";
+
+  // Case: roots
+  if (Array.isArray(complexData)) {
+    points = complexData.map((c, i) => ({
+      x: c.real,
+      y: c.imag,
+      label: `Root ${i + 1}`
+    }));
+    title = "Complex Roots";
+  }
+  // Case: single complex
+  else {
+    points = [{
+      x: complexData.real,
+      y: complexData.imag,
+      label: "z"
+    }];
+  }
+
+  Plotly.newPlot("visual-root", [{
+    x: points.map(p => p.x),
+    y: points.map(p => p.y),
+    text: points.map(p => p.label),
+    mode: "markers+text",
+    textposition: "top center",
+    marker: {
+      size: 10
+    },
+    type: "scatter"
+  }], {
+    title,
+    xaxis: {
+      title: "Real",
+      zeroline: true
+    },
+    yaxis: {
+      title: "Imaginary",
+      zeroline: true,
+      scaleanchor: "x"
+    }
+  });
+}
+
+function renderPolynomial(poly) {
+  const { coefficients, about } = poly;
+
+  const x = [];
+  const y = [];
+
+  const xmin = -5;
+  const xmax = 5;
+  const steps = 200;
+
+  for (let i = 0; i <= steps; i++) {
+    const xi = xmin + (i / steps) * (xmax - xmin);
+    let yi = 0;
+
+    coefficients.forEach((c, n) => {
+      yi += c * Math.pow(xi - about, n);
+    });
+
+    x.push(xi);
+    y.push(yi);
+  }
+
+  Plotly.newPlot("visual-root", [{
+    x,
+    y,
+    type: "scatter",
+    mode: "lines",
+    name: "Approximation"
+  }], {
+    title: "Function Approximation",
+    xaxis: { title: "x" },
+    yaxis: { title: "f(x)" }
+  });
+}
+function renderConvergence(points) {
+  Plotly.newPlot("visual-root", [{
+    x: points.map(p => p.iteration),
+    y: points.map(p => p.value),
+    type: "scatter",
+    mode: "lines+markers",
+    marker: { size: 6 }
+  }], {
+    title: "Iteration Convergence",
+    xaxis: { title: "Iteration" },
+    yaxis: { title: "Value" }
+  });
+}
+function renderODE(ode) {
+  Plotly.newPlot("visual-root", [{
+    x: ode.t,
+    y: ode.y,
+    type: "scatter",
+    mode: "lines",
+    name: "ODE Solution"
+  }], {
+    title: "ODE Trajectory",
+    xaxis: { title: "t" },
+    yaxis: { title: "y(t)" }
+  });
+}
 
 /* =====================================================
    HELPERS
@@ -221,3 +380,176 @@ function showMessage(msg) {
 function isPlainObject(obj) {
   return obj && typeof obj === "object" && !Array.isArray(obj);
 }
+function extractMatrix(data) {
+  for (const [k, v] of Object.entries(data)) {
+    if (
+      Array.isArray(v) &&
+      v.length > 0 &&
+      Array.isArray(v[0]) &&
+      v.every(row => Array.isArray(row))
+    ) {
+      return { key: k, value: v };
+    }
+  }
+  return null;
+}
+
+function extractComplex(data) {
+  // Case: roots array
+  if (Array.isArray(data.roots)) {
+    const valid = data.roots.every(
+      r => typeof r.real === "number" && typeof r.imag === "number"
+    );
+    if (valid) return data.roots;
+  }
+
+  // Case: single complex (rectangular)
+  if (
+    typeof data.real === "number" &&
+    typeof data.imag === "number"
+  ) {
+    return { real: data.real, imag: data.imag };
+  }
+
+  // Case: polar form (convert to rectangular)
+  if (
+    typeof data.modulus === "number" &&
+    typeof data.argument === "number"
+  ) {
+    return {
+      real: data.modulus * Math.cos(data.argument),
+      imag: data.modulus * Math.sin(data.argument)
+    };
+  }
+
+  return null;
+}
+function extractPolynomial(data) {
+  if (!Array.isArray(data.coefficients)) return null;
+
+  if (!data.coefficients.every(c => typeof c === "number")) return null;
+
+  return {
+    coefficients: data.coefficients,
+    about: typeof data.about === "number" ? data.about : 0
+  };
+}
+function extractConvergence(data) {
+  if (!data.iterations) return null;
+
+  // Case 1: array of numbers
+  if (
+    Array.isArray(data.iterations) &&
+    data.iterations.every(v => typeof v === "number")
+  ) {
+    return data.iterations.map((v, i) => ({
+      iteration: i + 1,
+      value: v
+    }));
+  }
+
+  // Case 2: array of objects
+  if (
+    Array.isArray(data.iterations) &&
+    data.iterations.every(
+      it => typeof it.iteration === "number" && typeof it.value === "number"
+    )
+  ) {
+    return data.iterations;
+  }
+
+  return null;
+}
+function extractODE(data) {
+  if (
+    Array.isArray(data.t) &&
+    Array.isArray(data.y) &&
+    data.t.length === data.y.length &&
+    data.t.every(v => typeof v === "number") &&
+    data.y.every(v => typeof v === "number")
+  ) {
+    return { t: data.t, y: data.y };
+  }
+  return null;
+}
+function extractCurveFit(data) {
+  // Case: explicit fitted y-values
+  if (
+    Array.isArray(data.x) &&
+    Array.isArray(data.y) &&
+    Array.isArray(data.y_fit) &&
+    data.x.length === data.y.length &&
+    data.y.length === data.y_fit.length
+  ) {
+    return {
+      x: data.x,
+      y: data.y,
+      yFit: data.y_fit
+    };
+  }
+
+  // Case: polynomial fit via coefficients
+  if (
+    Array.isArray(data.x) &&
+    Array.isArray(data.y) &&
+    Array.isArray(data.coefficients)
+  ) {
+    return {
+      x: data.x,
+      y: data.y,
+      coefficients: data.coefficients
+    };
+  }
+
+  return null;
+}
+
+function renderCurveFit(fit) {
+  const traces = [];
+
+  // Original data points
+  traces.push({
+    x: fit.x,
+    y: fit.y,
+    mode: "markers",
+    type: "scatter",
+    name: "Data"
+  });
+
+  // Case 1: fitted y-values
+  if (fit.yFit) {
+    traces.push({
+      x: fit.x,
+      y: fit.yFit,
+      mode: "lines",
+      type: "scatter",
+      name: "Fit"
+    });
+  }
+
+  // Case 2: coefficients → compute fit
+  if (fit.coefficients) {
+    const yFit = fit.x.map(xi => {
+      let yi = 0;
+      fit.coefficients.forEach((c, n) => {
+        yi += c * Math.pow(xi, n);
+      });
+      return yi;
+    });
+
+    traces.push({
+      x: fit.x,
+      y: yFit,
+      mode: "lines",
+      type: "scatter",
+      name: "Fit"
+    });
+  }
+
+  Plotly.newPlot("visual-root", traces, {
+    title: "Curve Fitting",
+    xaxis: { title: "x" },
+    yaxis: { title: "y" }
+  });
+}
+
