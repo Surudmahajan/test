@@ -105,7 +105,11 @@ function routeVisual(data) {
     renderCurveFit(fit);
     return;
   }
-
+ const analytics = extractAnalytics(data);
+ if (analytics) {
+   renderAnalytics(analytics);
+   return;
+  }
 
 
   /* ---------- CLASS E: Informational text ---------- */
@@ -121,6 +125,122 @@ function routeVisual(data) {
 /* =====================================================
    RENDERERS
 ===================================================== */
+function renderAnalytics(
+  analytics
+) {
+
+  switch (
+    analytics.type
+  ) {
+
+    case "heatmap":
+      renderHeatmap(
+        analytics.payload
+      );
+      break;
+
+    case "timeseries":
+      renderTimeSeries(
+        analytics.payload
+      );
+      break;
+
+    case "forecast":
+      renderForecast(
+        analytics.payload
+      );
+      break;
+
+  }
+
+}
+
+function renderHeatmap(
+  data
+) {
+
+  Plotly.newPlot(
+    "visual-root",
+    [
+      {
+        z: data.matrix,
+        type: "heatmap"
+      }
+    ],
+    {
+      title:
+        "Correlation Matrix"
+    }
+  );
+
+}
+function renderTimeSeries(
+  data
+) {
+
+  Plotly.newPlot(
+    "visual-root",
+    [
+      {
+        x: data.dates,
+        y: data.values,
+        mode: "lines+markers",
+        type: "scatter",
+        name: "Series"
+      }
+    ],
+    {
+      title:
+        "Time Series",
+
+      xaxis: {
+        title: "Time"
+      },
+
+      yaxis: {
+        title: "Value"
+      }
+    }
+  );
+
+}
+function renderForecast(
+  data
+) {
+
+  const historical =
+    data.historical;
+
+  const forecast =
+    data.forecast;
+
+  Plotly.newPlot(
+    "visual-root",
+    [
+      {
+        x: historical.x,
+        y: historical.y,
+        mode: "lines+markers",
+        type: "scatter",
+        name: "Historical"
+      },
+
+      {
+        x: forecast.x,
+        y: forecast.y,
+        mode: "lines+markers",
+        type: "scatter",
+        name: "Forecast"
+      }
+    ],
+    {
+      title:
+        "Forecast"
+    }
+  );
+
+}
+
 
 function renderScalarMap(map, title) {
   Plotly.newPlot("visual-root", [{
@@ -329,6 +449,41 @@ function renderODE(ode) {
 /* =====================================================
    HELPERS
 ===================================================== */
+
+function extractAnalytics(data) {
+
+  if (
+    Array.isArray(data.matrix)
+  ) {
+    return {
+      type: "heatmap",
+      payload: data
+    };
+  }
+
+  if (
+    Array.isArray(data.dates) &&
+    Array.isArray(data.values)
+  ) {
+    return {
+      type: "timeseries",
+      payload: data
+    };
+  }
+
+  if (
+    Array.isArray(data.historical) &&
+    Array.isArray(data.forecast)
+  ) {
+    return {
+      type: "forecast",
+      payload: data
+    };
+  }
+
+  return null;
+
+}
 
 function extractScalarMap(data) {
   const ignore = ["topic", "samples", "phasor"];
